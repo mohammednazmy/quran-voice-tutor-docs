@@ -6,6 +6,92 @@ This document tracks all changes, updates, and architectural decisions for backe
 
 ---
 
+## 2025-10-18 (Late Evening) - Backend Infrastructure Improvements & Operational Enhancements
+
+### Added
+- **Status Endpoint** (`GET /status`):
+  - Extended health check with operational metrics
+  - Reports: version, model, voice (marin), STT model, uptime, attempts today, last error hint, available reciters
+  - Useful for monitoring and debugging
+
+- **API Versioning**:
+  - Global `X-API-Version: 0.1` header on all endpoints via middleware
+  - Enables API evolution tracking and client compatibility checks
+
+- **HTTP Caching Enhancements**:
+  - **ETag headers** added to `/public/*` and `/rules_schema` endpoints
+  - SHA-1 hash of file content for strong validation
+  - Enables 304 Not Modified responses for bandwidth savings
+  - If-None-Match middleware infrastructure
+
+- **Attempts Pagination**:
+  - Added `since` parameter (ISO8601 or epoch seconds) to `/attempts` endpoint
+  - Added `offset` parameter for cursor-based pagination
+  - Returns `next_offset` for easy page traversal
+  - Example: `/attempts?since=2025-01-01T00:00:00Z&limit=20&offset=0`
+
+- **Compression**:
+  - Enabled gzip/deflate for `text/markdown` content type
+  - Reduces documentation transfer size significantly
+
+- **Documentation Enhancements**:
+  - Updated voice reference from "verse" to "marin" throughout API docs
+  - Replaced "Whisper" references with "OpenAI STT (default: gpt-4o-mini-transcribe)"
+  - Added "Operational Notes" section with version, caching, status, paging details
+  - Added "Quick cURL Examples" section with practical command-line usage
+
+### Changed
+- **Backend** `/opt/quran-rtc/backend/server.py`:
+  - Added `from datetime import datetime, timezone` imports
+  - Added `import hashlib` for ETag generation
+  - Added `STARTED_AT = time.time()` for uptime tracking
+  - Fixed datetime import conflict (removed duplicate `import datetime`)
+  - Added `_etag_headers_for_file()` helper function
+  - Enhanced `/public/*` endpoints with ETag support
+  - Enhanced `/rules_schema` endpoint with ETag support
+  - Added `VersionHeaderMiddleware` for X-API-Version header
+  - Added `IfNoneMatchMiddleware` for conditional request handling
+  - Enhanced `/attempts` endpoint with since/offset pagination
+  - Added `/status` endpoint with comprehensive metrics
+
+- **Apache Configuration**:
+  - Added `ProxyPass /status` rules to both HTTP and HTTPS vhosts
+  - Added `AddOutputFilterByType DEFLATE text/markdown` for compression
+  - Enabled mod_deflate module
+
+### Technical Details
+- **ETag Implementation**: SHA-1 hash of file content provides strong validation
+- **Pagination**: Cursor-based with `next_offset` prevents page drift issues
+- **Uptime Tracking**: Calculated from `STARTED_AT` timestamp set at server init
+- **Status Endpoint**: Reads attempts from `/var/log/quran-rtc/attempts-*.jsonl` files for today
+- **Error Tracking**: Reads last error hint from `/var/log/quran-rtc/error-last.log`
+- **Reciters Discovery**: Scans `/opt/quran-rtc/audio/` directory for subdirectories
+
+### Documentation
+- Updated `API_DOCUMENTATION.md`:
+  - Voice changed from "verse" to "marin" in health response
+  - STT model clarified as "OpenAI STT (default: gpt-4o-mini-transcribe)"
+  - Added Operational Notes section
+  - Added Quick cURL Examples section with 8 practical examples
+- Synced to public GitHub: https://github.com/mohammednazmy/quran-voice-tutor-docs
+
+### Testing
+```bash
+# Verify X-API-Version header
+curl -sI https://quran.asimo.io/health | grep x-api-version
+
+# Verify ETag header
+curl -sI https://quran.asimo.io/public/api_doc | grep etag
+
+# Test status endpoint
+curl -s https://quran.asimo.io/status | jq .
+
+# Test pagination
+curl -s "https://quran.asimo.io/attempts?limit=10&offset=0" | jq '.next_offset'
+```
+
+---
+
 ## 2025-10-18 (Evening) - Enhanced Tajweed Rules & Documentation Infrastructure
 
 ### Added

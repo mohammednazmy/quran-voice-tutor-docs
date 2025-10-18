@@ -6,6 +6,165 @@ This document tracks all changes, updates, and architectural decisions for backe
 
 ---
 
+## 2025-10-18 (Evening) - Voice-First Pack v2: Learning, Knowledge Base & WebSocket VAD
+
+### Added
+
+- **Learning & Translation Management**:
+  - `GET /learn/sets` - List available translation and tafsir datasets
+  - `POST /learn/set_defaults` - Switch active translation/tafsir sets at runtime
+  
+- **Morphology System**:
+  - `GET /morphology/sets` - List available word-by-word morphology datasets
+  - `POST /morphology/set_default` - Switch active morphology set dynamically
+  - Seed morphology file created: `/opt/quran-rtc/knowledge/morphology/en_basic.json`
+  - Pluggable morphology system for extensibility
+
+- **Knowledge Base with Page-Level Citations**:
+  - `POST /kb/upload` - Upload PDF/TXT documents to knowledge base
+  - `POST /kb/build` - Process documents, extract by page, generate embeddings
+  - `GET /kb/search` - Semantic search with page citations (e.g., "page 12")
+  - Uses `pdftotext` for page-accurate text extraction
+  - OpenAI embeddings (text-embedding-3-small) for vector search
+  - Cosine similarity ranking with top-k results (max 50)
+  - SQLite database for document storage at `/opt/quran-rtc/library/kb.sqlite`
+
+- **User Notes System**:
+  - `POST /notes/add` - Save study notes (verse-specific or general)
+  - `GET /notes/list` - Retrieve all user notes
+  - `GET /notes/export` - Export notes in JSON, CSV, or Markdown formats
+  - `POST /notes/remove` - Delete specific notes
+  - Notes stored in `/var/log/quran-rtc/notes/`
+
+- **Quiz System**:
+  - `GET /quiz/next` - Get next quiz question based on user history
+  - Question types: vocab, tajweed, memorization
+  - Prioritizes recently practiced verses
+  - Quiz data stored in `/var/log/quran-rtc/quiz/`
+
+- **WebSocket Streaming with Server-Side VAD**:
+  - `WebSocket /ws/stream` - Real-time audio streaming endpoint
+  - Optional server-side Voice Activity Detection (VAD)
+  - Configurable silence threshold (`vad_thr_db`, default: -45dB)
+  - Configurable silence hold time (`vad_hold_ms`, default: 900ms)
+  - Auto-triggers evaluation when silence detected
+  - Analyzes audio RMS in 200ms windows
+  - Expects 16kHz 16-bit PCM audio from client
+  - Returns evaluation blocks automatically on VAD trigger
+
+### Changed
+
+- **Backend** `/opt/quran-rtc/backend/server.py`:
+  - Added imports: `uuid`, `base64`, `io`, `math`, `sqlite3`, `struct`, `audioop`
+  - Added environment variable support:
+    - `EMBED_MODEL` (default: text-embedding-3-small)
+    - `MORPH_DEFAULT_SET` (default: en_basic)
+    - `WS_VAD_SILENCE_DB` (default: -45)
+    - `WS_VAD_HOLD_MS` (default: 900)
+  - Added `MORPH_ROOT` constant and `_load_morph_set()` function
+  - Added `_kb_db()` function for knowledge base database management
+  - Added `_cosine()` function for similarity calculations
+  - WebSocket handler enhanced with VAD state management
+
+- **Environment** `/opt/quran-rtc/backend/.env`:
+  - Added `EMBED_MODEL=text-embedding-3-small`
+  - Added `TRANSL_DEFAULT_SET=en_primary`
+  - Added `TAFSIR_DEFAULT_SET=en_short`
+  - Added `MORPH_DEFAULT_SET=en_basic`
+  - Added `WS_VAD_SILENCE_DB=-45`
+  - Added `WS_VAD_HOLD_MS=900`
+
+- **Apache Configuration** `/etc/apache2/sites-available/quran.asimo.io-le-ssl.conf`:
+  - Added ProxyPass rules for `/morphology` endpoints
+
+### Infrastructure
+
+- **Directory Structure Created**:
+  - `/opt/quran-rtc/knowledge/` - Root for translations, tafsir, morphology
+    - `knowledge/translations/` - Translation dataset files
+    - `knowledge/tafsir/` - Tafsir dataset files
+    - `knowledge/morphology/` - Morphology dataset files (*.json)
+  - `/opt/quran-rtc/library/` - Knowledge base document storage
+    - `library/pdfs/` - Original PDF uploads
+    - `library/text/` - Extracted text (organized by document)
+    - `library/kb.sqlite` - SQLite database with embeddings
+  - `/var/log/quran-rtc/notes/` - User notes storage
+  - `/var/log/quran-rtc/quiz/` - Quiz history storage
+
+- **Dependencies**:
+  - `poppler-utils` - For PDF text extraction with `pdftotext`
+  - `jq` - For JSON processing in scripts
+
+### API Endpoints Summary
+
+Total endpoints now: **28** (was 15)
+
+**New Endpoints (13)**:
+1. `GET /learn/sets` - List translation/tafsir sets
+2. `POST /learn/set_defaults` - Switch translation/tafsir
+3. `GET /morphology/sets` - List morphology sets
+4. `POST /morphology/set_default` - Switch morphology set
+5. `POST /kb/upload` - Upload KB document
+6. `POST /kb/build` - Build KB index
+7. `GET /kb/search` - Search KB with citations
+8. `POST /notes/add` - Add user note
+9. `GET /notes/list` - List user notes
+10. `GET /notes/export` - Export user notes
+11. `POST /notes/remove` - Remove user note
+12. `GET /quiz/next` - Get quiz question
+13. `WebSocket /ws/stream` - Streaming with VAD
+
+### Frontend Integration Notes
+
+**Knowledge Base**:
+- Upload study materials (tajweed guides, tafsir PDFs) via `/kb/upload`
+- Build index once via `/kb/build` (can take time for large docs)
+- Search semantically via `/kb/search?q=qalqala&k=5`
+- Display results with page citations: "See page 12 of Tajweed Basics"
+
+**Morphology**:
+- Fetch available sets via `/morphology/sets`
+- Allow users to switch between basic/advanced word-by-word glosses
+- Changes apply immediately to all `/learn/ayah` responses
+
+**Notes**:
+- Add notes during practice via `/notes/add`
+- Display notes list in study dashboard via `/notes/list`
+- Export for backup/sharing via `/notes/export?fmt=md`
+
+**Quiz**:
+- Generate practice questions via `/quiz/next?user_id=X&type=vocab`
+- System prioritizes verses user recently practiced
+- Returns null when no questions available
+
+**WebSocket VAD**:
+- Send initial message with `"server_vad": true` to enable
+- Send PCM audio chunks with type "audio" and base64-encoded bytes
+- Receive automatic evaluation when user pauses (no manual trigger needed)
+- Adjust sensitivity with `vad_thr_db` and `vad_hold_ms` parameters
+
+### Deprecation Warning
+
+- **audioop module**: Used for VAD RMS calculation, deprecated in Python 3.13
+  - Consider migrating to modern audio processing library (e.g., `scipy`, `librosa`)
+  - Does not affect functionality in Python 3.12
+
+### Migration Notes
+
+- No breaking changes to existing endpoints
+- All new features are opt-in (backward compatible)
+- Existing clients continue to work without modifications
+- New endpoints require no authentication (same CORS policy)
+
+### Documentation Updates
+
+- **API Documentation**: Added "Learning & Knowledge Base Endpoints" section with 13 new endpoints
+- **Table of Contents**: Reorganized to include new section
+- **README**: Updated endpoint count from 15 to 28
+- **PROJECT.md**: Added knowledge base and learning system references
+
+---
+
 ## 2025-10-18 (Late Evening) - Backend Infrastructure Improvements & Operational Enhancements
 
 ### Added

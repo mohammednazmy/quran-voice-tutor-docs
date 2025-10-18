@@ -6,6 +6,54 @@ This document tracks all changes, updates, and architectural decisions for backe
 
 ---
 
+## 2025-10-18 (Afternoon) - Redis Caching Layer Implementation
+
+### Added
+- **Redis Caching Infrastructure**:
+  - Installed and configured Redis 7.0.15 for in-memory caching
+  - Added `redis` Python package (v6.4.0) to backend dependencies
+  - Graceful fallback when Redis unavailable (REDIS_ENABLED flag)
+
+- **Cache Helper Functions**:
+  - `cache_get(key, ttl_seconds)`: Retrieve from cache with error handling
+  - `cache_set(key, value, ttl_seconds)`: Store with expiration time
+  - `cache_delete(key_pattern)`: Pattern-based cache invalidation
+  - All functions use try-except for resilience
+
+- **Cached Endpoints** (3 static content endpoints):
+  - **`GET /learn/ayah`**: 1-hour cache, key format `learn:{lang}:{surah}:{ayah}`
+    - Caches translation, tafsir, word-by-word morphology, vocabulary highlights
+  - **`GET /themes/surah`**: 2-hour cache, key format `themes:{lang}:{surah}`
+    - Caches surah theme and outline data
+  - **`GET /lexicon/lookup`**: 1-hour cache, key format `lexicon:{lang}:{text}`
+    - Caches morphology and root word lookups
+
+### Technical Details
+- **Connection**: `localhost:6379`, db=0, decode_responses=True, 1s timeout
+- **Error Handling**: All Redis operations wrapped in try-except with warning logs
+- **Performance Impact**: Reduces repeated database/file lookups for static content
+- **Cache Keys**: Structured format enables targeted invalidation by language/content
+
+### Testing
+```bash
+# Verify Redis caching active
+sudo systemctl status quran-rtc | grep "Redis caching enabled"
+
+# Test cached endpoint
+curl "https://quran.asimo.io/learn/ayah?surah=1&ayah=1&lang=en"
+
+# Check Redis for cached data
+redis-cli keys "learn:*"
+redis-cli get "learn:en:1:1"
+```
+
+### Next Steps
+- Apply caching to additional static endpoints (/search/term with result caching)
+- Implement cache warming strategy for frequently accessed content
+- Add cache statistics endpoint for monitoring hit/miss rates
+
+---
+
 ## 2025-10-18 (Late Evening) - Backend Infrastructure Improvements & Operational Enhancements
 
 ### Added

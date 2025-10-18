@@ -6,6 +6,40 @@ This document tracks all changes, updates, and architectural decisions for backe
 
 ---
 
+## 2025-10-18 (Afternoon Part 2) - PostgreSQL Migration Plan
+
+### Added
+- **PostgreSQL Migration Plan Document**: Comprehensive plan for migrating from file-based storage to PostgreSQL
+  - Location: `/opt/quran-rtc/backend/POSTGRES_MIGRATION_PLAN.md`
+  - Full database schema with 8 tables (users, profiles, attempts, surah_history, notes, quiz_results, streaming_sessions, analytics_events)
+  - 5-phase migration strategy (Setup → Dual-write → Data migration → Cutover → Cleanup)
+  - Estimated timeline: 8 days
+  - Includes indexes, constraints, backup strategy, testing plan, and rollback procedures
+
+### Database Schema Highlights
+- **users**: Core identity table with metadata
+- **profiles**: User preferences (target_reciter, target_mode, ui_lang)
+- **attempts**: Individual ayah evaluations with WER, transcript, tajweed_errors
+- **surah_history**: Per-surah progress tracking (best_wer, completed_ayahs)
+- **notes**: User annotations with verse_id indexing
+- **quiz_results**: Quiz attempts with score tracking
+- **streaming_sessions**: Session management for incremental evaluations
+- **analytics_events**: User interaction tracking for analytics
+
+### Migration Approach
+- **Dual-write period**: Write to both file storage and database simultaneously
+- **Graceful fallback**: Read from database, fall back to files if not found
+- **Data validation**: Compare counts and integrity before cutover
+- **Rollback plan**: Emergency flag to revert to file-based storage
+
+### Next Steps
+- Install PostgreSQL 15+ on production server
+- Implement asyncpg connection pooling in server.py
+- Develop migration script for existing JSON data
+- Begin Phase 1: Database setup
+
+---
+
 ## 2025-10-18 (Afternoon) - Redis Caching Layer Implementation
 
 ### Added

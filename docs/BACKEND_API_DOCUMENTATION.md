@@ -14,8 +14,9 @@
 3. [Evaluation Endpoints](#evaluation-endpoints)
 4. [Audio Management Endpoints](#audio-management-endpoints)
 5. [Real-Time Communication Endpoints](#real-time-communication-endpoints)
-6. [Data Models](#data-models)
-7. [Error Handling](#error-handling)
+6. [Learning & Knowledge Base Endpoints](#learning--knowledge-base-endpoints)
+7. [Data Models](#data-models)
+8. [Error Handling](#error-handling)
 
 ---
 
@@ -859,6 +860,390 @@ SDP offer string (raw text)
 - `200` - Success
 
 ---
+
+## Learning & Knowledge Base Endpoints
+
+### 1. List Translation Sets
+
+**Endpoint:** `GET /learn/sets`
+
+**Description:** Retrieve available translation and tafsir datasets.
+
+**Request:** None
+
+**Response:**
+```json
+{
+  "translations": ["en_primary", "en_secondary"],
+  "tafsir": ["en_short", "en_detailed"],
+  "defaults": {
+    "translation": "en_primary",
+    "tafsir": "en_short"
+  }
+}
+```
+
+**Status Codes:**
+- `200` - Success
+
+---
+
+### 2. Set Default Translation/Tafsir
+
+**Endpoint:** `POST /learn/set_defaults`
+
+**Description:** Change the active translation and/or tafsir dataset at runtime.
+
+**Request (Form Data):**
+- `t_set` (optional): Translation set ID (e.g., "en_primary")
+- `taf_set` (optional): Tafsir set ID (e.g., "en_short")
+
+**Response:**
+```json
+{
+  "ok": true,
+  "defaults": {
+    "translation": "en_primary",
+    "tafsir": "en_short"
+  }
+}
+```
+
+**Status Codes:**
+- `200` - Success
+- `404` - Translation or tafsir set not found
+
+---
+
+### 3. List Morphology Sets
+
+**Endpoint:** `GET /morphology/sets`
+
+**Description:** List available word-by-word morphology datasets.
+
+**Request:** None
+
+**Response:**
+```json
+{
+  "sets": ["en_basic", "en_advanced", "ar_detailed"],
+  "default": "en_basic"
+}
+```
+
+**Status Codes:**
+- `200` - Success
+
+---
+
+### 4. Set Default Morphology Set
+
+**Endpoint:** `POST /morphology/set_default`
+
+**Description:** Switch the active morphology dataset for word-by-word analysis.
+
+**Request (Form Data):**
+- `set_id` (required): Morphology set ID (e.g., "en_basic")
+
+**Response:**
+```json
+{
+  "ok": true,
+  "default": "en_basic"
+}
+```
+
+**Status Codes:**
+- `200` - Success
+- `404` - Morphology set not found
+
+---
+
+### 5. Upload Knowledge Base Document
+
+**Endpoint:** `POST /kb/upload`
+
+**Description:** Upload a PDF or text document to the knowledge base for semantic search.
+
+**Request (Multipart Form Data):**
+- `file` (required): PDF or TXT file
+- `title` (optional): Document title
+
+**Response:**
+```json
+{
+  "ok": true,
+  "stored": "/opt/quran-rtc/library/pdfs/tajweed_guide.pdf",
+  "text_dir": "/opt/quran-rtc/library/text/tajweed_guide"
+}
+```
+
+**Status Codes:**
+- `200` - Success
+- `400` - Invalid file format
+
+---
+
+### 6. Build Knowledge Base Index
+
+**Endpoint:** `POST /kb/build`
+
+**Description:** Process uploaded documents, extract text by page, generate embeddings, and build the semantic search index.
+
+**Request:** None
+
+**Response:**
+```json
+{
+  "ok": true,
+  "chunks_indexed": 127
+}
+```
+
+**Status Codes:**
+- `200` - Success
+
+**Notes:**
+- Uses OpenAI embeddings (model from EMBED_MODEL env var)
+- Chunks documents into 800-character segments with 160-char overlap
+- Stores page numbers for citation support
+
+---
+
+### 7. Search Knowledge Base
+
+**Endpoint:** `GET /kb/search`
+
+**Description:** Semantic search across indexed knowledge base documents with page-level citations.
+
+**Query Parameters:**
+- `q` (required): Search query
+- `k` (optional, default=5): Number of results to return (max 50)
+
+**Response:**
+```json
+{
+  "q": "tajweed rules",
+  "results": [
+    {
+      "source": "tajweed_basics.txt",
+      "title": "tajweed_basics",
+      "page": 3,
+      "chunk": 0,
+      "text": "Qalqala is an echoing sound produced when..."
+    },
+    {
+      "source": "tajweed_guide.pdf",
+      "title": "Tajweed Guide",
+      "page": 12,
+      "chunk": 1,
+      "text": "Idgham is the merging of noon sakinah..."
+    }
+  ]
+}
+```
+
+**Status Codes:**
+- `200` - Success
+
+**Notes:**
+- Results include page numbers where available (null for full-text documents)
+- Uses cosine similarity for ranking
+- Text truncated to 600 characters per result
+
+---
+
+### 8. Add User Note
+
+**Endpoint:** `POST /notes/add`
+
+**Description:** Save a user study note (verse-specific or general).
+
+**Request (Form Data):**
+- `user_id` (required): User identifier
+- `verse_id` (optional): Verse reference (e.g., "1:1")
+- `note` (required): Note text
+
+**Response:**
+```json
+{
+  "ok": true,
+  "note_id": "abc123..."
+}
+```
+
+**Status Codes:**
+- `200` - Success
+
+---
+
+### 9. List User Notes
+
+**Endpoint:** `GET /notes/list`
+
+**Description:** Retrieve all notes for a user.
+
+**Query Parameters:**
+- `user_id` (required): User identifier
+
+**Response:**
+```json
+[
+  {
+    "id": "abc123",
+    "verse_id": "1:1",
+    "note": "Focus on madd length",
+    "timestamp": "2025-10-18T17:30:00Z"
+  },
+  {
+    "id": "def456",
+    "verse_id": null,
+    "note": "Review qalqalah rules",
+    "timestamp": "2025-10-18T18:00:00Z"
+  }
+]
+```
+
+**Status Codes:**
+- `200` - Success
+
+---
+
+### 10. Export User Notes
+
+**Endpoint:** `GET /notes/export`
+
+**Description:** Export user notes in various formats.
+
+**Query Parameters:**
+- `user_id` (required): User identifier
+- `fmt` (optional, default="json"): Export format ("json", "csv", "md")
+
+**Response:**
+- JSON: Array of note objects
+- CSV: Comma-separated values with header row
+- MD: Markdown formatted list
+
+**Status Codes:**
+- `200` - Success
+
+---
+
+### 11. Remove User Note
+
+**Endpoint:** `POST /notes/remove`
+
+**Description:** Delete a specific note.
+
+**Request (Form Data):**
+- `user_id` (required): User identifier
+- `note_id` (required): Note ID to remove
+
+**Response:**
+```json
+{
+  "ok": true
+}
+```
+
+**Status Codes:**
+- `200` - Success
+- `404` - Note not found
+
+---
+
+### 12. Get Next Quiz Question
+
+**Endpoint:** `GET /quiz/next`
+
+**Description:** Retrieve a quiz question based on user's study history.
+
+**Query Parameters:**
+- `user_id` (required): User identifier
+- `type` (optional, default="vocab"): Quiz type ("vocab", "tajweed", "memorization")
+
+**Response:**
+```json
+{
+  "question": {
+    "type": "vocab",
+    "verse_id": "2:255",
+    "word": "ٱلْحَىُّ",
+    "choices": ["The Ever-Living", "The All-Knowing", "The All-Powerful", "The Most High"],
+    "correct_index": 0
+  }
+}
+```
+
+**Status Codes:**
+- `200` - Success (may return `{"question": null}` if no questions available)
+
+**Notes:**
+- Prioritizes verses the user has recently practiced
+- Falls back to random selection if no history
+
+---
+
+### 13. WebSocket Streaming with Voice Activity Detection
+
+**Endpoint:** `WebSocket /ws/stream`
+
+**Description:** Real-time audio streaming with optional server-side Voice Activity Detection (VAD).
+
+**Initial Message (Client → Server):**
+```json
+{
+  "type": "start",
+  "surah": 1,
+  "ayah": 1,
+  "t_set": "en_primary",
+  "taf_set": "en_short",
+  "server_vad": true,
+  "vad_thr_db": -45,
+  "vad_hold_ms": 900
+}
+```
+
+**Parameters:**
+- `server_vad` (optional, default=false): Enable server-side VAD
+- `vad_thr_db` (optional, default=-45): Silence threshold in dB
+- `vad_hold_ms` (optional, default=900): How long silence triggers auto-evaluation
+
+**Audio Message (Client → Server):**
+```json
+{
+  "type": "audio",
+  "bytes": "<base64-encoded-pcm-audio>"
+}
+```
+
+**Notes:**
+- Client should send 16kHz 16-bit PCM audio
+- Server analyzes RMS in 200ms windows
+- Auto-triggers evaluation when silence detected for `vad_hold_ms`
+- Returns evaluation block automatically on VAD trigger
+
+**Response (Server → Client):**
+```json
+{
+  "type": "block",
+  "block": {
+    "ayah": 1,
+    "wer": 0.15,
+    "coach_line_ar": "ممتاز! ركز على القلقلة",
+    "coach_line_en": "Excellent! Focus on qalqalah",
+    "learn": {
+      "translation": "...",
+      "tafsir": "...",
+      "word_by_word": [...]
+    }
+  },
+  "next_ayah": 2
+}
+```
+
+---
+
 
 ## Data Models
 

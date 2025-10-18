@@ -1008,6 +1008,8 @@ SDP offer string (raw text)
 - Chunks documents into 800-character segments with 160-char overlap
 - Stores page numbers for citation support
 
+- Uses token-aware batch processing (up to 2,048 inputs per API call, respecting 300k token limit)
+- Typical performance: ~20,000 chunks indexed in 2-3 minutes
 ---
 
 ### 7. Search Knowledge Base

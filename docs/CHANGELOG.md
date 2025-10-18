@@ -5,6 +5,29 @@
 This document tracks all changes, updates, and architectural decisions for backend-frontend coordination.
 
 ---
+## 2025-10-18 (Late Evening) - Knowledge Base Build Performance Fix
+
+### Fixed
+
+- **Knowledge Base Build Optimization (`POST /kb/build`)**:
+  - Replaced sequential API calls (1 per chunk) with token-aware batch processing
+  - Now batches up to 2,048 inputs per API call while respecting OpenAI's 300k token limit
+  - Performance improvement: 20,567 chunks indexed in ~2 minutes (was timing out after 15+ min)
+  - Reduced API calls from 20,000+ to ~10 batch calls
+  - Dynamic batch sizing based on estimated token count (1 token ≈ 4 chars)
+  - Database schema validated with `page` column for citation support
+
+### Technical Details
+
+- Added three-phase processing:
+  1. **Collection Phase**: Gather all chunks with metadata (source, title, page, chunk_ix, text)
+  2. **Batch Embedding Phase**: Process in token-aware batches with extended timeout (300s)
+  3. **Database Insertion Phase**: Bulk insert all chunks with embeddings
+- Updated API timeout: 300s (was 60s) to handle large batches
+- Maintains page-level metadata for accurate citations
+
+---
+
 
 ## 2025-10-18 (Evening) - Voice-First Pack v2: Learning, Knowledge Base & WebSocket VAD
 

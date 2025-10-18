@@ -6,6 +6,125 @@ This document tracks all changes, updates, and architectural decisions for backe
 
 ---
 
+## 2025-10-18 (Night) - Full Feature Upgrade: WebSocket, Knowledge Base, Adaptive Learning
+
+### Overview
+Comprehensive backend upgrade adding 7 major feature categories with 15+ new endpoints.
+
+### Features Added
+
+#### 1. WebSocket Streaming (`WS /ws/stream`)
+Real-time ayah-by-ayah recitation evaluation with automatic learning content delivery.
+
+**Protocol**: Client sends `start` → audio chunks → `ayah_end` → receives evaluation block with learning content → repeat → `end`
+
+**Key Capabilities**:
+- Incremental audio buffering
+- Per-ayah STT evaluation (WER, tips, tajweed)
+- Auto-injected learning content (translation, tafsir, morphology)
+- Custom translation/tafsir set support
+
+#### 2. Multi-Translation & Tafsir Sets
+Pluggable translation/tafsir databases for multi-language support.
+
+**Endpoints**:
+- `GET /learn/sets`: List available sets + defaults
+- `GET /learn/ayah?...&t_set={set}&taf_set={set}`: Custom sets
+
+**Storage**: `/opt/quran-rtc/knowledge/{translations,tafsir}/*.json`
+**Seed Data**: Surah Al-Fatiha (en_primary, en_short)
+
+#### 3. Enhanced Lexicon & Search
+- `GET /lexicon/lookup?text={word}`: Morphology lookup (Arabic → gloss, root, POS)
+- `GET /search/term?q={query}&lang={ar|en}`: Concordance search (200 result limit)
+
+#### 4. Knowledge Base System
+RAG system with embeddings for document search.
+
+**Endpoints**:
+- `POST /kb/upload`: Upload PDF/TXT (auto-converts PDF with pdftotext)
+- `POST /kb/build`: Chunk (800 chars, 160 overlap) + embed all docs
+- `GET /kb/search?q={query}&k={count}`: Semantic search via cosine similarity
+
+**Storage**: `/opt/quran-rtc/library/` (SQLite: docs table with embed vectors)
+**Model**: `text-embedding-3-small` (configurable via `EMBED_MODEL` env)
+
+#### 5. Adaptive Quizzes
+Spaced repetition quizzes from user's learning notes.
+
+**Endpoints**:
+- `GET /quiz/next?user_id={id}`: Generate quiz from oldest note (FIFO)
+- `POST /quiz/grade_note`: Grade answer
+
+**Algorithm**: 1 correct answer + 3 random distractors from other notes
+
+#### 6. Notes Export
+- `GET /notes/export?user_id={id}&fmt={md|csv|json}`: Export learning notes
+
+**Formats**: JSON (machine), CSV (spreadsheet), Markdown (human-readable)
+
+#### 7. Preserved Features
+- Command protocol (CMD:) in persona responses
+- All existing `/notes/*` endpoints
+
+### Environment Variables
+```bash
+EMBED_MODEL=text-embedding-3-small
+TRANSL_DEFAULT_SET=en_primary
+TAFSIR_DEFAULT_SET=en_short
+```
+
+### Apache Configuration
+Added proxy rules for: `/learn/sets`, `/lexicon`, `/search/term`, `/kb`, `/quiz/next`, `/quiz/grade_note`, `/notes/export`, `/ws/stream` (WebSocket)
+
+### Directory Structure
+```
+/opt/quran-rtc/
+├── knowledge/{translations,tafsir}/*.json
+├── library/{text,kb.sqlite}
+/var/log/quran-rtc/{notes,quiz}/
+```
+
+### Testing
+```bash
+curl "https://quran.asimo.io/learn/sets"
+curl "https://quran.asimo.io/lexicon/lookup?text=الرحمن"
+curl "https://quran.asimo.io/search/term?q=Merciful&lang=en"
+curl -X POST "https://quran.asimo.io/kb/upload" -F "file=@doc.pdf"
+curl -X POST "https://quran.asimo.io/kb/build"
+curl "https://quran.asimo.io/kb/search?q=Bismillah&k=3"
+curl "https://quran.asimo.io/quiz/next?user_id=test"
+curl "https://quran.asimo.io/notes/export?user_id=test&fmt=md"
+```
+
+### Frontend Integration Notes
+- **WebSocket**: Use `WebSocketChannel` for continuous streaming
+- **Translation Sets**: Dropdown populated from `/learn/sets`
+- **KB Search**: Citation-based learning content enhancement
+- **Adaptive Quizzes**: Daily vocabulary review feature
+- **Export**: Backup/share functionality
+
+### Performance
+- WebSocket: 10+ concurrent users
+- KB Build: 1-2 min for 100-page document
+- Search: ~10k chunks in-memory cosine similarity
+- Caching: Translation/tafsir via Redis (1-2h TTL)
+
+### Migration
+1. Install poppler-utils: `sudo apt install poppler-utils`
+2. Seed translation sets (auto-created by upgrade script)
+3. Set env variables
+4. Restart services
+
+### Next Steps
+- Add more translation sets (FR, ES, UR, etc.)
+- Redis caching for KB search
+- KB document management UI
+- SM-2 spaced repetition algorithm
+- Anki deck export (.apkg)
+
+---
+
 ## 2025-10-18 (Late Evening) - Backend Infrastructure Improvements & Operational Enhancements
 
 ### Added

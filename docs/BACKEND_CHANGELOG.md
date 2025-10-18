@@ -6,6 +6,73 @@ This document tracks all changes, updates, and architectural decisions for backe
 
 ---
 
+## 2025-10-18 (Afternoon Part 3) - Comprehensive Error Handling & Retry Logic
+
+### Added
+- **Custom Exception Classes**:
+  - `APIError`: Base exception for API errors
+  - `STTError`: Speech-to-text specific errors
+  - `TransientError`: Retriable transient failures
+  - `RateLimitError`: Rate limit exceeded errors
+
+- **Circuit Breaker Pattern** for STT API:
+  - Failure threshold: 5 consecutive failures
+  - Recovery timeout: 60 seconds
+  - States: closed (normal) → open (blocking) → half-open (testing)
+  - Prevents cascading failures and gives external services time to recover
+
+- **Retry Decorator with Exponential Backoff**:
+  - `@retry_with_backoff(max_retries=3, base_delay=1.0, max_delay=10.0)`
+  - Retries on transient errors: `TimeoutException`, `ConnectError`, `ReadTimeout`
+  - Exponential backoff: 1s → 2s → 4s (capped at 10s)
+  - Non-transient errors fail immediately (no retry)
+
+- **Enhanced STT Error Handling**:
+  - 30-second timeout on all STT API calls
+  - Rate limit detection (HTTP 429) with circuit breaker trip
+  - Server error detection (HTTP 5xx) with circuit breaker trip
+  - Client error detection (HTTP 4xx) with detailed logging
+  - Network error handling with retry
+  - Circuit breaker check before each call
+
+- **Async Error Logging**:
+  - `log_error_async(error_type, error_msg, context)` function
+  - Structured error logs with timestamp, type, message, and context
+  - Updates `last_error_hint` for `/status` endpoint
+  - Foundation for future monitoring integration
+
+### Technical Details
+- **Retry Strategy**: Only transient network errors are retried (timeout, connection, read errors)
+- **Circuit Breaker**: Protects backend from overwhelming failing external service
+- **Error Context**: All errors logged with relevant context (model name, status code, etc.)
+- **Graceful Degradation**: Primary STT model failure still falls back to secondary model
+
+### Example Error Flow
+```
+1. STT call fails with timeout → Retry 1 after 1s → Retry 2 after 2s → Retry 3 after 4s
+2. All retries fail → Circuit breaker failure count incremented
+3. After 5 failures → Circuit breaker opens (blocks all calls for 60s)
+4. After 60s → Half-open state (allows test call)
+5. Test call succeeds → Circuit breaker closes (normal operation)
+```
+
+### Testing
+```bash
+# Verify service restarted successfully
+sudo systemctl status quran-rtc | grep "active (running)"
+
+# Test endpoint (should work normally)
+curl "https://quran.asimo.io/status"
+```
+
+### Next Steps
+- Monitor error logs for patterns
+- Tune circuit breaker thresholds based on production traffic
+- Add metrics endpoint for circuit breaker state
+- Consider adding dead letter queue for failed attempts
+
+---
+
 ## 2025-10-18 (Late Evening) - Backend Infrastructure Improvements & Operational Enhancements
 
 ### Added

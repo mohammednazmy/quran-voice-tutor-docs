@@ -432,7 +432,52 @@ curl -X GET "https://quran.asimo.io/surah_tokens?surah=1"
 
 ---
 
-### 8. Evaluate Multi-Ayah Span with Madd Duration Checks
+### 8. Get Tajweed Rules Schema
+
+**Endpoint:** `GET /rules_schema`
+
+**Description:** Retrieve the tajweed rules schema with Arabic label translations for all 14 rule categories. This endpoint serves the `/opt/quran-rtc/data/rules_schema.json` file with proper caching headers.
+
+**Request:** None
+
+**Response:**
+```json
+{
+  "labels_ar": {
+    "madd_lazim": "مد لازم (≈6)",
+    "madd_muttasil": "مد متصل (≈4-5)",
+    "madd_munfasil": "مد منفصل (≈4-5)",
+    "madd_badal": "مد بدل (≈2)",
+    "ghunnah": "غنّة",
+    "ikhfa": "إخفاء",
+    "idgham_ghunnah": "إدغام بغنّة",
+    "idgham_no_ghunnah": "إدغام بلا غنّة",
+    "izhar": "إظهار",
+    "iqlab": "إقلاب",
+    "qalqalah": "قلقلة",
+    "tafkhim": "تفخيم",
+    "tarqiq": "ترقيق",
+    "waqf": "وقف"
+  }
+}
+```
+
+**Caching:**
+- `Cache-Control: max-age=300, public` (5-minute cache)
+- `Last-Modified` header with file timestamp
+
+**Status Codes:**
+- `200` - Success
+- `404` - rules_schema.json not found
+
+**Frontend Integration:**
+1. Fetch schema: `GET /rules_schema`
+2. Use `labels_ar` to display Arabic rule names in UI
+3. Cache the schema to reduce API calls
+
+---
+
+### 9. Evaluate Multi-Ayah Span with Madd Duration Checks
 
 **Endpoint:** `POST /evaluate_span`
 
@@ -1307,6 +1352,7 @@ curl https://quran.asimo.io/public/context
 **Version:** Current (as of October 2025)
 
 **Recent Changes:**
+- Added `GET /rules_schema` endpoint serving tajweed rules with Arabic labels and caching headers
 - Added `/public/api_doc`, `/public/changelog`, `/public/context` documentation endpoints with caching headers
 - Enhanced tajweed rule detection: added izhar (throat letters) and iqlab (before ب) to `/surah_tokens`
 - Added `/rtc/offer_ephemeral` endpoint for improved WebRTC reliability

@@ -14,6 +14,11 @@ This document tracks all changes, updates, and architectural decisions for backe
   - **Iqlab Detection**: Conversion to meem when ن sakinah/tanween appears before ب
   - Both rules integrated into existing idgham/ikhfa detection logic with proper priority ordering
 
+- **Rules Schema Endpoint**:
+  - `GET /rules_schema` - Serves `/opt/quran-rtc/data/rules_schema.json` with Arabic label translations for all 14 tajweed rule categories
+  - Includes caching headers (Cache-Control: max-age=300, Last-Modified)
+  - Enables frontend to display localized rule names (e.g., "مد لازم" for madd_lazim)
+
 - **Documentation Endpoints** (`/public/*` with FastAPI passthrough):
   - `GET /public/api_doc` - Complete API documentation in Markdown
   - `GET /public/changelog` - Backend changelog with version history
@@ -24,15 +29,17 @@ This document tracks all changes, updates, and architectural decisions for backe
 
 ### Changed
 - **Backend**: `/opt/quran-rtc/backend/server.py`
+  - Added `JSONResponse` to FastAPI imports for JSON endpoint support
   - Added `IZHAR_SET = set("ءههعحغخ")` constant for throat letters
   - Added `IQLAB_TARGET = 'ب'` constant for iqlab detection
   - Updated `tag_rules_for_ayah()` function:
     - Nun sakinah section: checks for idgham_ghunnah → idgham_no_ghunnah → iqlab → izhar → ikhfa
     - Tanween section: same priority ordering for rule detection
   - Enhanced `/public/*` endpoint responses with caching headers
+  - Added `@app.get("/rules_schema")` endpoint handler with JSON response and caching
 
-- **Apache Proxy**: Added ProxyPass rules for `/public/*` path
-  - Routes documentation requests to FastAPI backend (port 5056)
+- **Apache Proxy**: Added ProxyPass rules for `/rules_schema` and `/public/*` paths
+  - Routes requests to FastAPI backend (port 5056)
   - Configured in both SSL and non-SSL vhosts
 
 ### Technical Details
@@ -43,10 +50,11 @@ This document tracks all changes, updates, and architectural decisions for backe
 
 ### Documentation
 - Updated `API_DOCUMENTATION.md`:
+  - Added `GET /rules_schema` endpoint documentation with Arabic label examples
   - Enhanced izhar and iqlab rule descriptions with specific detection criteria
   - Added new "Documentation Endpoints" section with examples and alternative GitHub URLs
   - Updated inline changelog with recent enhancements
-- Updated `CHANGELOG.md` with detailed technical implementation notes
+- Updated `CHANGELOG.md` with detailed technical implementation notes for all evening changes
 
 ### Coordination
 - Documentation auto-syncs to public GitHub repository every 5 minutes

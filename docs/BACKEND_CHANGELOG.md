@@ -6,6 +6,76 @@ This document tracks all changes, updates, and architectural decisions for backe
 
 ---
 
+## 2025-10-18 (Afternoon Part 4) - Analytics Endpoints for User Progress
+
+### Added
+- **GET /analytics/user_progress**: Comprehensive progress summary
+  - Total attempts, average/best/worst WER
+  - Average accuracy percentage
+  - Total verses practiced, unique surahs
+  - Practice streak (consecutive days)
+  - Last practice timestamp
+
+- **GET /analytics/tajweed_weaknesses**: Identify common errors
+  - Aggregates error types (substitution, insertion, deletion)
+  - Lists most problematic words with error counts
+  - Provides actionable suggestions for improvement
+  - Limit parameter to control top N results (default: 5)
+
+- **GET /analytics/surah_performance**: Per-surah detailed metrics
+  - Total attempts and unique ayahs practiced
+  - Overall average accuracy for surah
+  - Per-ayah breakdown: attempts, avg WER, best WER, accuracy percentages
+  - Last attempt timestamp per ayah
+
+- **GET /analytics/learning_velocity**: Track improvement over time
+  - Analyzes last N days (default: 30)
+  - Weekly breakdown: attempts, unique verses, average accuracy
+  - Improvement trend calculation (first week vs last week)
+  - Trend classification: improving, stable, or declining
+
+### Apache Configuration
+- Added ProxyPass rules for `/analytics` endpoints in both HTTP and HTTPS vhosts
+- Routes `/analytics/*` to backend on port 5056
+
+### Technical Details
+- All endpoints read from existing file-based attempts storage
+- No database required (compatible with current architecture)
+- Efficient file globbing with user_id filtering
+- DateTime handling for streak and velocity calculations
+- Aggregation logic for error pattern detection
+
+### Example Usage
+```bash
+# Get overall progress
+curl "https://quran.asimo.io/analytics/user_progress?user_id=user123"
+
+# Find weak areas
+curl "https://quran.asimo.io/analytics/tajweed_weaknesses?user_id=user123&limit=10"
+
+# Surah-specific performance
+curl "https://quran.asimo.io/analytics/surah_performance?user_id=user123&surah=1"
+
+# Learning velocity
+curl "https://quran.asimo.io/analytics/learning_velocity?user_id=user123&days=60"
+```
+
+### Integration Notes
+- Frontend can use these endpoints to display:
+  - Progress dashboard with stats cards
+  - Weak areas chart highlighting problematic words
+  - Per-surah progress bars with completion tracking
+  - Learning velocity line chart showing improvement trend
+- All responses are JSON, ready for chart libraries (Chart.js, Recharts, etc.)
+
+### Next Steps
+- Add caching for analytics queries (expensive aggregations)
+- Create composite analytics endpoint for dashboard (single request)
+- Add date range filtering to all analytics endpoints
+- Implement analytics for quiz results when available
+
+---
+
 ## 2025-10-18 (Afternoon Part 3) - Comprehensive Error Handling & Retry Logic
 
 ### Added

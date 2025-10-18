@@ -6,7 +6,57 @@ This document tracks all changes, updates, and architectural decisions for backe
 
 ---
 
-## 2025-10-18 - Surah Tokenization with Tajweed Color Tags & Multi-Ayah Span Evaluation
+## 2025-10-18 (Evening) - Enhanced Tajweed Rules & Documentation Infrastructure
+
+### Added
+- **Tajweed Rule Detection Enhancements** in `/surah_tokens` endpoint:
+  - **Izhar Detection**: Clear pronunciation when ن sakinah/tanween appears before throat letters (ء ه ع ح غ خ)
+  - **Iqlab Detection**: Conversion to meem when ن sakinah/tanween appears before ب
+  - Both rules integrated into existing idgham/ikhfa detection logic with proper priority ordering
+
+- **Documentation Endpoints** (`/public/*` with FastAPI passthrough):
+  - `GET /public/api_doc` - Complete API documentation in Markdown
+  - `GET /public/changelog` - Backend changelog with version history
+  - `GET /public/context` - Full project context for development
+  - All endpoints include HTTP caching headers:
+    - `Cache-Control: max-age=300, public` (5-minute cache)
+    - `Last-Modified: <file timestamp>` for client-side cache validation
+
+### Changed
+- **Backend**: `/opt/quran-rtc/backend/server.py`
+  - Added `IZHAR_SET = set("ءههعحغخ")` constant for throat letters
+  - Added `IQLAB_TARGET = 'ب'` constant for iqlab detection
+  - Updated `tag_rules_for_ayah()` function:
+    - Nun sakinah section: checks for idgham_ghunnah → idgham_no_ghunnah → iqlab → izhar → ikhfa
+    - Tanween section: same priority ordering for rule detection
+  - Enhanced `/public/*` endpoint responses with caching headers
+
+- **Apache Proxy**: Added ProxyPass rules for `/public/*` path
+  - Routes documentation requests to FastAPI backend (port 5056)
+  - Configured in both SSL and non-SSL vhosts
+
+### Technical Details
+- **Izhar Logic**: When ن sakinah (ن with ْ) or tanween (ً ٍ ٌ) is followed by throat letters (hamza, ha, ayn, ha, ghayn, khah), apply izhar rule
+- **Iqlab Logic**: When ن sakinah or tanween is followed by ب, apply iqlab rule
+- **Priority Order**: idgham (with/without ghunnah) checked first, then iqlab, then izhar, finally ikhfa as default
+- **HTTP Caching**: 5-minute cache allows near-real-time updates while reducing server load for AI tool access
+
+### Documentation
+- Updated `API_DOCUMENTATION.md`:
+  - Enhanced izhar and iqlab rule descriptions with specific detection criteria
+  - Added new "Documentation Endpoints" section with examples and alternative GitHub URLs
+  - Updated inline changelog with recent enhancements
+- Updated `CHANGELOG.md` with detailed technical implementation notes
+
+### Coordination
+- Documentation auto-syncs to public GitHub repository every 5 minutes
+- Multiple access methods for AI tools:
+  - FastAPI endpoints: https://quran.asimo.io/public/*
+  - GitHub raw URLs: https://raw.githubusercontent.com/mohammednazmy/quran-voice-tutor-docs/main/docs/*
+
+---
+
+## 2025-10-18 (Morning) - Surah Tokenization with Tajweed Color Tags & Multi-Ayah Span Evaluation
 
 ### Added
 - **New Endpoint: `GET /surah_tokens?surah=S`** - Full-surah tajweed tokenization with rule-based color tagging

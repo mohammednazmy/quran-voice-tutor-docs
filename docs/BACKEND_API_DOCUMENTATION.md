@@ -401,8 +401,8 @@ curl -X GET "https://quran.asimo.io/surah_tokens?surah=1"
 - `ikhfa` - Ikhfa (concealment of noon sakinah/tanween)
 - `idgham_ghunnah` - Idgham with ghunnah (ن followed by ي ن م و)
 - `idgham_no_ghunnah` - Idgham without ghunnah (ن followed by ر ل)
-- `izhar` - Izhar (clear pronunciation)
-- `iqlab` - Iqlab (conversion of noon sakinah to meem)
+- `izhar` - Izhar (clear pronunciation of ن sakinah/tanween before throat letters: ء ه ع ح غ خ)
+- `iqlab` - Iqlab (conversion of ن sakinah/tanween to meem before ب)
 - `qalqalah` - Qalqalah (echoing sound on ق ط ب ج د)
 - `tafkhim` - Tafkhim (heavy/emphatic letters)
 - `tarqiq` - Tarqiq (light letters)
@@ -1220,11 +1220,95 @@ Future<void> playCanonicalAudio(String verseId) async {
 
 ---
 
+## Documentation Endpoints
+
+### Public Documentation Access
+
+**Base Path:** `/public/`
+
+**Description:** FastAPI passthrough endpoints serving project documentation with proper caching headers. These endpoints enable AI tools and external services to access the latest API documentation, changelogs, and project context.
+
+**Caching:** All `/public/*` endpoints include:
+- `Cache-Control: max-age=300, public` (5-minute cache)
+- `Last-Modified` header with file modification timestamp
+
+---
+
+#### 1. API Documentation
+
+**Endpoint:** `GET /public/api_doc`
+
+**Description:** Serves the complete API documentation in Markdown format.
+
+**Response:** Plain text (Markdown)
+
+**Example:**
+```bash
+curl https://quran.asimo.io/public/api_doc
+```
+
+**Alternative URLs:**
+- **Primary**: https://quran.asimo.io/public/api_doc
+- **GitHub Raw**: https://raw.githubusercontent.com/mohammednazmy/quran-voice-tutor-docs/main/docs/BACKEND_API_DOCUMENTATION.md
+
+---
+
+#### 2. Changelog
+
+**Endpoint:** `GET /public/changelog`
+
+**Description:** Serves the backend changelog with all updates and version history.
+
+**Response:** Plain text (Markdown)
+
+**Example:**
+```bash
+curl https://quran.asimo.io/public/changelog
+```
+
+**Alternative URLs:**
+- **Primary**: https://quran.asimo.io/public/changelog
+- **GitHub Raw**: https://raw.githubusercontent.com/mohammednazmy/quran-voice-tutor-docs/main/docs/BACKEND_CHANGELOG.md
+
+---
+
+#### 3. Project Context
+
+**Endpoint:** `GET /public/context`
+
+**Description:** Serves the complete project context documentation for development coordination.
+
+**Response:** Plain text (Markdown)
+
+**Example:**
+```bash
+curl https://quran.asimo.io/public/context
+```
+
+**Alternative URLs:**
+- **Primary**: https://quran.asimo.io/public/context
+- **GitHub Raw**: https://raw.githubusercontent.com/mohammednazmy/quran-voice-tutor-docs/main/docs/PROJECT_CONTEXT.md
+
+---
+
+**Status Codes (All Documentation Endpoints):**
+- `200` - Success
+- `404` - Documentation file not found
+
+**Notes:**
+- Documentation is auto-synced to GitHub every 5 minutes
+- GitHub raw URLs provide direct, unauthenticated access for AI tools
+- FastAPI endpoints serve as primary source with better availability monitoring
+
+---
+
 ## Changelog
 
 **Version:** Current (as of October 2025)
 
 **Recent Changes:**
+- Added `/public/api_doc`, `/public/changelog`, `/public/context` documentation endpoints with caching headers
+- Enhanced tajweed rule detection: added izhar (throat letters) and iqlab (before ب) to `/surah_tokens`
 - Added `/rtc/offer_ephemeral` endpoint for improved WebRTC reliability
 - Added word-level timestamps in `/evaluate_audio` response
 - Enhanced tajweed rule detection (qalqalah, idgham, madd)

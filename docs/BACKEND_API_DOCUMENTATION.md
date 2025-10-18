@@ -46,7 +46,7 @@ All endpoints are currently open for the Flutter frontend. The server uses CORS 
 {
   "ok": true,
   "model": "gpt-realtime",
-  "voice": "verse",
+  "voice": "marin",
   "stt": "gpt-4o-mini-transcribe"
 }
 ```
@@ -243,7 +243,7 @@ GET /canon?verse_id=1:1
 
 **Endpoint:** `POST /evaluate_audio`
 
-**Description:** Transcribe user's audio using OpenAI Whisper, then evaluate against canonical verse.
+**Description:** Transcribe user's audio using OpenAI OpenAI STT (default: gpt-4o-mini-transcribe), then evaluate against canonical verse.
 
 **Content-Type:** `multipart/form-data`
 
@@ -1369,3 +1369,39 @@ For issues or questions about the API, please contact the development team or ch
 ---
 
 **End of Documentation**
+
+---
+
+### Operational Notes
+- **Version:** `X-API-Version: 0.1`
+- **Docs:** `/public/api_doc`, `/public/changelog`, `/public/context` (Cache-Control: 5 min, ETag, Last-Modified)
+- **Status:** `/status` → uptime, attempts today, reciters, last error hint
+- **Attempts paging:** `/attempts?limit=50&offset=0&since=2025-01-01T00:00:00Z`
+
+### Quick cURL Examples
+
+```bash
+# Health
+curl -s https://quran.asimo.io/health | jq .
+
+# Status (extended health)
+curl -s https://quran.asimo.io/status | jq .
+
+# Surah tokens (rule colors)
+curl -s "https://quran.asimo.io/surah_tokens?surah=1" | jq '.ayahs[0]'
+
+# Rules schema (Arabic labels)
+curl -s https://quran.asimo.io/rules_schema | jq '.labels_ar | keys'
+
+# Single-ayah evaluate (audio)
+curl -s -F verse_id=1:1 -F "file=@clip.wav" https://quran.asimo.io/evaluate_audio | jq '.stats'
+
+# Multi-ayah evaluate (span)
+curl -s -F surah=1 -F start_ayah=1 -F end_ayah=3 -F "file=@clip.wav" https://quran.asimo.io/evaluate_span | jq '.blocks[].coach_line_ar'
+
+# Attempts paging
+curl -s "https://quran.asimo.io/attempts?since=2025-01-01T00:00:00Z&limit=20&offset=0" | jq '.items|length,.next_offset'
+
+# Check headers (ETag, version, caching)
+curl -sI https://quran.asimo.io/public/api_doc | grep -E "(etag|x-api-version|cache-control)"
+```

@@ -4,6 +4,121 @@ This file tracks all changes made to the Flutter frontend application.
 
 ---
 
+## 2025-10-18 - Read Tab Enhancements: Legend, Reciter Selector, and Repeat 3× Feature
+
+### Added
+- **Tajweed Legend Modal**: New "Legend" button in Read tab AppBar
+  - Shows modal dialog with all 19 tajweed rule categories and their color codes
+  - Visual color swatches next to each rule name
+  - Helps users understand the color-coding system
+  - Rules include: Hamza Wasl, Silent, Lam Shamsiyyah, various Madda types, Qalqala, Ikhfa variations, Idgham variations, Iqlab, and Ghunnah
+- **Reciter Selector**: Dropdown menu to select different Quranic reciters
+  - Available reciters: Mishary Alafasy (default), Mahmoud Husary, Mohamed Minshawi
+  - Selection persists during Read tab session
+  - Integrated with canonical audio playback system
+- **"Repeat 3× (slow)" Feature**: Checkbox toggle for enhanced practice mode
+  - When enabled, plays canonical audio 3 times after successful evaluation (WER < 0.3)
+  - Visual repeat counter shows current iteration (1/3, 2/3, 3/3)
+  - 500ms pause between repetitions for better learning experience
+  - Helps users internalize correct pronunciation through repetition
+- **Playback Speed Control**: Dropdown menu for canonical audio speed
+  - Speed options: 0.7× (slow), 1.0× (normal), 1.25× (fast)
+  - Applies to both single and 3× repeat playback
+  - Enables learners to follow along at comfortable pace
+- **Canonical Audio Player**: New AudioPlayer instance for Read tab
+  - Plays audio from backend `/audio/verse/{surah}/{ayah}?reciter_id={reciter}` endpoint
+  - Tracks playback state with `_isPlayingCanonical` flag
+  - Prevents multiple simultaneous playback instances
+  - Automatically triggered after evaluation completes (if enabled)
+
+### Changed
+- **Read Tab State Variables**: Added new state management for audio features
+  - `_canonicalPlayer`: AudioPlayer instance for canonical recitation playback
+  - `_currentPlayingAudioUrl`: Tracks currently playing audio URL
+  - `_isPlayingCanonical`: Boolean flag for playback state
+  - `_selectedReciter`: Current reciter selection (default: 'ar.alafasy')
+  - `_repeatSlowEnabled`: Toggle for 3× repeat mode
+  - `_playbackSpeed`: Current playback speed (default: 1.0)
+  - `_repeatCount`: Current iteration counter for 3× mode
+- **Read Tab UI Layout**: Enhanced controls section
+  - Reciter selector row with label and dropdown
+  - Repeat toggle row with checkbox, label, and speed dropdown
+  - Organized in Padding widgets with consistent spacing (16px horizontal, 8px vertical)
+- **Evaluation Flow**: Modified to include conditional audio playback
+  - After evaluation completes, checks if `_repeatSlowEnabled` is true
+  - If enabled and WER < 0.3 (good recitation), triggers `_playCanonicalAudio()`
+  - Provides immediate auditory feedback and modeling of correct recitation
+
+### Technical Details
+- **_playCanonicalAudio() Method**: Asynchronous audio playback handler
+  - Accepts surah and ayah numbers as parameters
+  - Constructs audio URL with selected reciter
+  - Sets playback speed before playing
+  - Implements 3× repeat loop with position tracking
+  - Uses `positionStream.firstWhere()` to detect audio completion
+  - Graceful error handling with try-catch block
+  - Resets state flags after playback completes
+- **_showTajweedLegend() Method**: Modal dialog for tajweed color reference
+  - Uses AlertDialog with scrollable content
+  - `_legendItem()` helper widget creates color swatch + label pairs
+  - Color swatches: 40×20px with rounded corners and gray borders
+  - 19 rule categories with exact hex colors matching backend palette
+- **UI Integration**: Seamlessly integrated into existing Read tab layout
+  - Legend button in AppBar actions (info icon with tooltip)
+  - Controls rows placed before existing start/stop controls
+  - Dropdowns use `isExpanded: true` for full-width layout
+  - Consistent with Material Design 3 styling
+
+### Backend Integration
+- **Audio Endpoint**: Leverages existing `/audio/verse/{surah}/{ayah}?reciter_id={reciter}` endpoint
+  - Supports multiple reciter IDs
+  - Returns canonical audio in appropriate format
+- **Evaluation Endpoint**: Works with existing `/evaluate_span` endpoint
+  - Uses WER threshold (0.3) to determine if playback should trigger
+  - Only plays audio after good recitation to reinforce positive outcomes
+
+### User Experience Improvements
+- **Visual Learning Aid**: Legend modal makes tajweed color system transparent and educational
+- **Personalized Practice**: Reciter selector allows users to practice with their preferred reciter's style
+- **Enhanced Memorization**: 3× repeat mode reinforces correct pronunciation through repetition
+- **Flexible Pacing**: Speed control accommodates different learning speeds and skill levels
+- **Immediate Modeling**: Automatic playback after evaluation provides instant correct pronunciation model
+- **Clear Feedback**: Repeat counter (1/3, 2/3, 3/3) shows progress through playback cycle
+
+### Files Modified
+- `/Users/mohammednazmy/dev/quran_voice_tutor/mobile_flutter/lib/main.dart`
+  - Added `import 'package:just_audio/just_audio.dart'` if not present
+  - Added 7 new state variables to `_ReadTabState` class
+  - Added `_playCanonicalAudio()` method (35 lines) for audio playback with repeat logic
+  - Added `_showTajweedLegend()` method (30 lines) for legend modal
+  - Added `_legendItem()` helper widget for color swatch display
+  - Modified Read tab AppBar to include Legend icon button
+  - Added Reciter selector UI row (15 lines)
+  - Added Repeat toggle and speed control UI row (25 lines)
+  - Modified evaluation success handler to trigger audio playback conditionally
+
+### Dependencies
+- **just_audio**: Already included in pubspec.yaml for canonical audio playback
+  - Used in Practice tab, now also used in Read tab
+  - Supports speed control and position tracking
+  - Cross-platform compatible
+
+### Known Limitations
+- Playback speed control applies to entire audio file (no granular control)
+- 3× repeat only triggers for WER < 0.3 (may need adjustment based on user feedback)
+- Legend modal is static (could be enhanced with interactive examples in future)
+- Audio playback blocks UI interaction (intentional for focus, but could be made non-blocking)
+
+### Notes
+- This feature bridges the gap between evaluation and modeling
+- Users can now immediately hear correct pronunciation after their attempt
+- Repeat mode is particularly useful for beginners and memorization
+- Speed control enables gradual progression from slow to normal speed
+- Legend makes the app more self-documenting and educational
+- All features are optional (can be toggled off for minimal distraction)
+
+---
+
 ## 2025-10-18 - FastAPI Passthrough Endpoints Integration
 
 ### Added

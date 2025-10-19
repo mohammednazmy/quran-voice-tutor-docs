@@ -5,6 +5,41 @@
 This document tracks all changes, updates, and architectural decisions for backend-frontend coordination.
 
 ---
+## 2025-10-18 (Late Night) - Critical Bug Fixes + Bilingual Voice Mode
+
+### Fixed
+
+- **CRITICAL: Practice Mode 500 Errors** (`POST /evaluate_audio`):
+  - Fixed async/sync bug in `_stt_once` function (server.py:1506)
+  - Root cause: Using list of tuples for `data` parameter with `files` parameter caused httpx.AsyncClient to attempt sync operations
+  - Solution: Converted `data_list` to `data_dict` for proper async httpx compatibility
+  - Error message was: "Attempted to send async request with an AsyncClient instance"
+  - Practice Mode "Record and Evaluate" now works without 500 errors
+
+- **Voice Mode English/Arabic Transitions** (`GET /persona`):
+  - Updated persona instructions to support bilingual responses
+  - AI now responds in user's language (English or Arabic)
+  - English queries → English responses with Arabic Quranic terms
+  - Arabic queries → Arabic responses
+  - Added kb.search CMD action for knowledge base integration
+
+### Documentation
+
+- Created `CRITICAL_ISSUES_AND_FIXES.md` for frontend coordination
+- Documented 3 issues with detailed root cause analysis and fixes
+- Provided frontend testing checklist and fix recommendations
+- Established coordination protocol for backend→frontend communication
+
+### Testing Status
+
+- ✅ Backend syntax verified, service restarted
+- ⏳ Frontend testing required:
+  1. Practice Mode evaluation (bug fixed)
+  2. Voice Mode English/Arabic switching (bug fixed)
+  3. Read Mode ayah display (frontend fix needed)
+  4. Streaming Surah VAD (ready for testing)
+
+---
 ## 2025-10-18 (Late Evening) - Knowledge Base Build Performance Fix
 
 ### Fixed

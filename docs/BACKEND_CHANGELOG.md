@@ -5,6 +5,65 @@
 This document tracks all changes, updates, and architectural decisions for backend-frontend coordination.
 
 ---
+## 2025-10-18 (Night) - Server-Side VAD Implementation Complete
+
+### Added
+
+- **Server-Side Voice Activity Detection (VAD)**:
+  - Implemented `_audio_db_level()` helper function using `audioop.rms()` for RMS-based audio level analysis
+  - Real-time audio chunk analysis with dB level calculation: `20 * log10(rms / 32768.0)`
+  - Automatic silence detection and ayah_end triggering in `/ws/stream` WebSocket endpoint
+  - Configurable via environment variables:
+    - `WS_VAD_SILENCE_DB=-45` (default): Silence threshold in decibels
+    - `WS_VAD_HOLD_MS=900` (default): Silence duration before auto-triggering evaluation
+
+- **WebSocket Protocol Enhancements**:
+  - `start` message now accepts `server_vad` boolean parameter (default: false)
+  - Acknowledgment message includes `server_vad` status confirmation
+  - Evaluation responses include `vad_triggered: true` flag when VAD auto-triggered
+  - VAD state properly resets on each new ayah/session
+
+### Technical Details
+
+- **VAD Algorithm**:
+  1. Each audio chunk analyzed for RMS (Root Mean Square) level
+  2. RMS converted to dB relative to 16-bit audio range (32768)
+  3. If dB level < threshold for hold duration → auto-trigger evaluation
+  4. Silence tracking resets when audio level rises above threshold
+  5. State variables: `below_start` (timestamp), `server_vad` (enabled flag)
+
+- **Integration Points**:
+  - Frontend sends `'server_vad': true` in WebSocket start message
+  - Backend maintains VAD state per WebSocket session
+  - Auto-evaluation follows same pipeline as manual `ayah_end`:
+    - STT with primary/secondary fallback
+    - Core evaluation with WER, ops, tips
+    - Tajweed rules analysis
+    - Learning payload with translation/tafsir
+  - Buffer automatically resets and advances to next ayah
+
+- **Performance**:
+  - Zero latency overhead for VAD-disabled sessions
+  - Minimal computational cost: single RMS calculation per audio chunk
+  - No additional API calls or external dependencies
+
+### Testing Results
+
+- ✓ Status Endpoint (`/status`)
+- ✓ API Versioning (headers)
+- ✓ Morphology System (`/morphology/sets`)
+- ✓ Tajweed Rules Schema (via KB search)
+- ✓ Knowledge Base Admin (`/kb/upload`, `/kb/build`, `/kb/search`)
+- ✓ Documentation Viewer (`/public/list_docs`, `/public/api_doc`)
+- ✓ Multi-Ayah Span Evaluation (`/evaluate_span`)
+- ✓ Attempts Pagination (limit parameter)
+- ✓ HTTP Caching with ETags (documentation endpoints)
+- ✓ User Notes Export (`/notes/export?fmt=json|md|csv`)
+- ✓ **Server-Side VAD Functionality (WebSocket `/ws/stream`)**
+
+**All 10 backend integrations now fully functional and tested.**
+
+---
 ## 2025-10-18 (Late Evening) - Knowledge Base Build Performance Fix
 
 ### Fixed

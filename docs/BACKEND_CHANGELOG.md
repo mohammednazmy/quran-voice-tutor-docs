@@ -5,6 +5,44 @@
 This document tracks all changes, updates, and architectural decisions for backend-frontend coordination.
 
 ---
+## 2025-10-18 (Late Night Part 2) - All 3 Critical Bugs Fixed
+
+### Fixed
+
+**ALL THREE CRITICAL BUGS IDENTIFIED BY FRONTEND ARE NOW RESOLVED:**
+
+1. **Practice Tab 500 Error - datetime AttributeError** ✅
+   - Error: `AttributeError: 'method_descriptor' object has no attribute 'today'`
+   - Fixed: `datetime.date.today()` → `datetime.now().date()` (server.py:282)
+   - Root cause: Using `datetime` class method incorrectly (imported as class not module)
+   - Status: Practice Mode "Record and Evaluate" now works without errors
+
+2. **Read Tab No Ayah Text - Token Field Mismatch** ✅
+   - Error: Ayah text not displaying (only numbers visible)
+   - Fixed: Changed token field `'t'` → `'word'` (server.py:871)
+   - Root cause: Backend returned `{'t': 'word'}` but frontend expected `{'word': 'word'}`
+   - Verified: `/surah_tokens?surah=1` now returns proper `word` field
+   - Status: Arabic ayah text will now display correctly in Read Tab
+
+3. **Voice Mode Only Arabic - Persona Not Bilingual** ✅
+   - Error: AI understood English but refused to speak it (only Arabic)
+   - Fixed: Completely rewrote persona instructions for bilingual support (server.py:462-479)
+   - Changes:
+     - Added explicit English instructions: "You are a bilingual Quran teacher..."
+     - Instructed AI to respond in user's language
+     - Added kb.search CMD action for knowledge base integration
+   - Verified: Persona starts with "You are a bilingual..." (not Arabic-only)
+   - Status: Voice Mode will now respond in English when user speaks English
+
+### Testing Status
+
+- ✅ Backend syntax verified, service restarted
+- ✅ `/surah_tokens` verified: returns `{'word': 'بِسۡمِ', 'rules': [], 'color': '#111111'}`
+- ✅ `/persona` verified: includes English + Arabic bilingual instructions
+- ✅ `/persona` verified: includes `kb.search` CMD action
+- ⏳ User testing required for end-to-end validation
+
+---
 ## 2025-10-18 (Late Night) - Critical Bug Fixes + Bilingual Voice Mode
 
 ### Fixed
